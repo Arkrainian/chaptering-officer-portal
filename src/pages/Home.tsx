@@ -24,9 +24,6 @@ export function Home() {
 
       <Card className="mt-8 text-left">
         <h2 className="text-sm font-semibold text-slate-900">Send a message</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          A quick way to prove the site is talking to a real database.
-        </p>
 
         <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={handleSubmit}>
           <Input
