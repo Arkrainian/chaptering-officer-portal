@@ -6,11 +6,6 @@ export function Dashboard() {
     <PlaceholderPage
       title="Dashboard"
       description="Everything you need at a glance, right when you log in."
-      upcoming={[
-        'Summary metrics (open cases, pending reviews, recent activity)',
-        'Notifications and alerts',
-        'Quick links to assigned cases',
-      ]}
     />
   );
 }

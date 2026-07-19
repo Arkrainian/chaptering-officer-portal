@@ -6,11 +6,6 @@ export function Officers() {
     <PlaceholderPage
       title="Officers"
       description="Directory of chaptering officers and their roles."
-      upcoming={[
-        'Officer directory with contact details',
-        'Role-based permissions per officer',
-        'Assignment history',
-      ]}
     />
   );
 }
