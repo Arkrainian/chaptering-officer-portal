@@ -28,7 +28,7 @@ src/
     layout/     Header, Footer, NavBar, Logo
     auth/       AuthProvider, ProtectedRoute (placeholders, see Authentication below)
     ui/         Reusable primitives (Button, Card, Input, PageHeading, ...)
-  pages/        One file per route (Home, Dashboard, Cases, Officers, Settings, Login, DatabaseDemo)
+  pages/        One file per route (Home, Dashboard, Officers, Login)
   layouts/      AppLayout (header/nav/footer shell shared by every page)
   hooks/        useAuth, useMessages (data-fetching hooks that wrap the service layer)
   services/
@@ -69,8 +69,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-public-key
 ```
 
 `.env` is git-ignored — never commit real credentials. The app still loads
-without these set, but the Database Demo page will show a friendly
-"database not configured" message instead of crashing.
+without these set.
 
 ## Connecting Supabase
 
@@ -99,13 +98,6 @@ npm run format          # Prettier (writes changes)
 npm run format:check    # Prettier (check only)
 ```
 
-## Database demo
-
-Visit **Database Demo** in the nav. Type a message, click **Save to
-Database** — it inserts a row into the `demo_messages` table via
-`services/supabase/messageService.ts` and immediately reloads the list below.
-Refreshing the page shows the data persisted in Supabase.
-
 ## Authentication (not yet implemented)
 
 Full auth is intentionally out of scope for this prototype. The scaffolding
@@ -115,8 +107,8 @@ is in place so it can be added without restructuring:
 - [`src/components/auth/ProtectedRoute.tsx`](src/components/auth/ProtectedRoute.tsx) — route guard, ready to wrap pages once real auth exists.
 - [`src/pages/Login.tsx`](src/pages/Login.tsx) — placeholder sign-in form (does not call Supabase yet).
 
-Dashboard/Cases/Officers/Settings are currently open (not wrapped in
-`ProtectedRoute`) so the whole app can be demoed without signing in.
+Dashboard/Officers are currently open (not wrapped in `ProtectedRoute`) so
+the whole app can be demoed without signing in.
 
 ## Deployment (Vercel)
 
@@ -126,7 +118,7 @@ Dashboard/Cases/Officers/Settings are currently open (not wrapped in
 4. Add the environment variables under Project Settings → Environment Variables:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-5. Deploy, then verify the live URL loads and the Database Demo page can read/write.
+5. Deploy, then verify the live URL loads.
 
 ## Future roadmap
 

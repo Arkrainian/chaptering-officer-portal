@@ -4,10 +4,7 @@ import { cn } from '@/lib/cn';
 const links = [
   { to: '/', label: 'Home', end: true },
   { to: '/dashboard', label: 'Dashboard' },
-  { to: '/cases', label: 'Cases' },
   { to: '/officers', label: 'Officers' },
-  { to: '/settings', label: 'Settings' },
-  { to: '/database-demo', label: 'Database Demo' },
 ];
 
 export function NavBar() {

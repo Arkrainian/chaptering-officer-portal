@@ -5,7 +5,7 @@ export function Dashboard() {
   return (
     <PlaceholderPage
       title="Dashboard"
-      description="A high-level overview for chaptering officers."
+      description="Everything you need at a glance, right when you log in."
       upcoming={[
         'Summary metrics (open cases, pending reviews, recent activity)',
         'Notifications and alerts',
