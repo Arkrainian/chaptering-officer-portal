@@ -7,10 +7,6 @@ import { Officers } from '@/pages/Officers';
 import { Login } from '@/pages/Login';
 import { NotFound } from '@/pages/NotFound';
 
-// NOTE: nav pages are left open (not wrapped in <ProtectedRoute>) for this
-// prototype so navigation can be demoed without signing in first.
-// TODO(auth): once Supabase Auth is wired up, wrap Dashboard/Officers in
-// <ProtectedRoute> (see src/components/auth/ProtectedRoute.tsx).
 export function App() {
   return (
     <AuthProvider>

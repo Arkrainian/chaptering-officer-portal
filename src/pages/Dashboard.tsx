@@ -1,6 +1,5 @@
 import { PlaceholderPage } from '@/components/ui/PlaceholderPage';
 
-// TODO: replace with real dashboard analytics (open cases, recent activity, alerts, etc.)
 export function Dashboard() {
   return (
     <PlaceholderPage

@@ -3,11 +3,6 @@ import type { DemoMessage } from '@/types/database';
 
 const TABLE = 'demo_messages';
 
-/**
- * A friendly error surfaced to the UI. The original error is logged
- * separately (see logError) so we never leak raw Supabase/Postgres
- * error text to end users.
- */
 export class ServiceError extends Error {}
 
 function logError(context: string, error: unknown): void {

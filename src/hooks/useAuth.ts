@@ -8,9 +8,7 @@ export interface AuthUser {
 export interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
-  // TODO: replace with supabase.auth.signInWithPassword (or OAuth/magic link)
   signIn: (email: string, password: string) => Promise<void>;
-  // TODO: replace with supabase.auth.signOut
   signOut: () => Promise<void>;
 }
 

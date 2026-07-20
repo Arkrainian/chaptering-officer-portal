@@ -6,9 +6,6 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { PageHeading } from '@/components/ui/PageHeading';
 
-// TODO(auth): this is a placeholder screen. Replace the manual form submit
-// with supabase.auth.signInWithPassword (or magic link / OAuth) once
-// Supabase Auth is introduced.
 export function Login() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
