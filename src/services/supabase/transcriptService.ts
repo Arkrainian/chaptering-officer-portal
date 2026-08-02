@@ -39,7 +39,7 @@ export async function fetchDigests(): Promise<MeetingDigest[]> {
   const { data, error } = await supabase
     .from(TABLE)
     .select(
-      'id, title, transcript, overview, decisions, action_items, key_points, open_questions, attendees, created_at',
+      'id, title, transcript, overview, decisions, action_items, key_points, open_questions, attendees, created_at, person_id',
     )
     .order('created_at', { ascending: false });
 
@@ -60,7 +60,7 @@ export async function saveDigest(digest: MeetingDigestInsert): Promise<MeetingDi
     .from(TABLE)
     .insert(digest)
     .select(
-      'id, title, transcript, overview, decisions, action_items, key_points, open_questions, attendees, created_at',
+      'id, title, transcript, overview, decisions, action_items, key_points, open_questions, attendees, created_at, person_id',
     )
     .single();
 

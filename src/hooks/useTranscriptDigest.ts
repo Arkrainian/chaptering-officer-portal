@@ -15,7 +15,7 @@ interface UseTranscriptDigestResult {
   error: string | null;
   pendingDigest: TranscriptDigest | null;
   summarize: (transcript: string) => Promise<void>;
-  save: (transcript: string) => Promise<boolean>;
+  save: (transcript: string, personId: string | null) => Promise<boolean>;
   discardPending: () => void;
 }
 
@@ -60,12 +60,12 @@ export function useTranscriptDigest(): UseTranscriptDigestResult {
   }, []);
 
   const save = useCallback(
-    async (transcript: string) => {
+    async (transcript: string, personId: string | null) => {
       if (!pendingDigest) return false;
       setIsSaving(true);
       setError(null);
       try {
-        await saveDigest({ ...pendingDigest, transcript: transcript.trim() });
+        await saveDigest({ ...pendingDigest, transcript: transcript.trim(), person_id: personId });
         setPendingDigest(null);
         await refresh();
         return true;

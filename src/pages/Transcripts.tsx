@@ -1,7 +1,9 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useMemo, useState } from 'react';
 import { useTranscriptDigest } from '@/hooks/useTranscriptDigest';
+import { usePeople } from '@/hooks/usePeople';
 import { Card } from '@/components/ui/Card';
 import { Textarea } from '@/components/ui/Textarea';
+import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { PageHeading } from '@/components/ui/PageHeading';
 
@@ -17,17 +19,46 @@ export function Transcripts() {
     save,
     discardPending,
   } = useTranscriptDigest();
+  const { people, addPerson } = usePeople();
   const [transcript, setTranscript] = useState('');
+  const [selectedPersonId, setSelectedPersonId] = useState('');
+  const [newPersonName, setNewPersonName] = useState('');
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const digest of digests) {
+      if (digest.person_id) {
+        map.set(digest.person_id, (map.get(digest.person_id) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [digests]);
+
+  const visibleDigests = useMemo(() => {
+    if (!activeFilter) return digests;
+    return digests.filter((digest) => digest.person_id === activeFilter);
+  }, [digests, activeFilter]);
 
   const handleSummarize = async (event: FormEvent) => {
     event.preventDefault();
     await summarize(transcript);
   };
 
+  const handleAddPerson = async (event: FormEvent) => {
+    event.preventDefault();
+    const person = await addPerson(newPersonName);
+    if (person) {
+      setNewPersonName('');
+      setSelectedPersonId(person.id);
+    }
+  };
+
   const handleSave = async () => {
-    const saved = await save(transcript);
+    const saved = await save(transcript, selectedPersonId || null);
     if (saved) {
       setTranscript('');
+      setSelectedPersonId('');
     }
   };
 
@@ -100,33 +131,110 @@ export function Transcripts() {
               Attendees: {pendingDigest.attendees.join(', ')}
             </p>
           )}
+
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              File under
+            </h3>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select
+                aria-label="Person"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                value={selectedPersonId}
+                onChange={(e) => setSelectedPersonId(e.target.value)}
+                disabled={isSaving}
+              >
+                <option value="">No person</option>
+                {people.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+              <form className="flex gap-2" onSubmit={handleAddPerson}>
+                <Input
+                  aria-label="New person name"
+                  placeholder="Add a new person…"
+                  value={newPersonName}
+                  onChange={(e) => setNewPersonName(e.target.value)}
+                  className="w-40"
+                />
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={newPersonName.trim().length === 0}
+                >
+                  Add
+                </Button>
+              </form>
+            </div>
+          </div>
         </Card>
       )}
 
       <div className="mt-8">
         <h2 className="text-sm font-semibold text-slate-900">Saved digests</h2>
+
+        {people.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveFilter(null)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                activeFilter === null
+                  ? 'border-slate-900 bg-slate-900 text-white'
+                  : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              All ({digests.length})
+            </button>
+            {people.map((person) => (
+              <button
+                key={person.id}
+                type="button"
+                onClick={() => setActiveFilter(person.id)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  activeFilter === person.id
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                {person.name} ({counts.get(person.id) ?? 0})
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="mt-3">
           {isLoading ? (
             <p className="text-sm text-slate-500">Loading digests…</p>
-          ) : digests.length === 0 ? (
-            <p className="text-sm text-slate-500">No digests saved yet.</p>
+          ) : visibleDigests.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              {activeFilter ? 'No digests filed under this person yet.' : 'No digests saved yet.'}
+            </p>
           ) : (
             <ul className="space-y-3">
-              {digests.map((digest) => (
-                <li key={digest.id}>
-                  <Card>
-                    <div className="flex items-baseline justify-between gap-4">
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        {digest.title || 'Untitled meeting'}
-                      </h3>
-                      <span className="shrink-0 text-xs text-slate-400">
-                        {new Date(digest.created_at).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-slate-700">{digest.overview}</p>
-                  </Card>
-                </li>
-              ))}
+              {visibleDigests.map((digest) => {
+                const person = people.find((p) => p.id === digest.person_id);
+                return (
+                  <li key={digest.id}>
+                    <Card>
+                      <div className="flex items-baseline justify-between gap-4">
+                        <h3 className="text-sm font-semibold text-slate-900">
+                          {digest.title || 'Untitled meeting'}
+                        </h3>
+                        <span className="shrink-0 text-xs text-slate-400">
+                          {new Date(digest.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      {person && (
+                        <p className="mt-1 text-xs font-medium text-slate-500">{person.name}</p>
+                      )}
+                      <p className="mt-2 text-sm text-slate-700">{digest.overview}</p>
+                    </Card>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

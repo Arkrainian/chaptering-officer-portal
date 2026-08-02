@@ -14,6 +14,16 @@ export interface ActionItem {
   due: string;
 }
 
+export interface Person {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface PersonInsert {
+  name: string;
+}
+
 export interface TranscriptDigest {
   title: string;
   overview: string;
@@ -28,8 +38,10 @@ export interface MeetingDigest extends TranscriptDigest {
   id: string;
   transcript: string;
   created_at: string;
+  person_id: string | null;
 }
 
 export interface MeetingDigestInsert extends TranscriptDigest {
   transcript: string;
+  person_id: string | null;
 }
