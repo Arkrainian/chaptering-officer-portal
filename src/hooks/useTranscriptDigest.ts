@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  deleteDigest,
   fetchDigests,
   saveDigest,
   ServiceError,
   summarizeTranscript,
+  updateDigest,
+  type MeetingDigestUpdate,
 } from '@/services/supabase/transcriptService';
 import type { MeetingDigest, TranscriptDigest } from '@/types/database';
 
@@ -12,11 +15,14 @@ interface UseTranscriptDigestResult {
   isLoading: boolean;
   isSummarizing: boolean;
   isSaving: boolean;
+  isMutating: boolean;
   error: string | null;
   pendingDigest: TranscriptDigest | null;
   summarize: (transcript: string) => Promise<void>;
   save: (transcript: string, personId: string | null) => Promise<boolean>;
   discardPending: () => void;
+  update: (id: string, patch: MeetingDigestUpdate) => Promise<boolean>;
+  remove: (id: string) => Promise<boolean>;
 }
 
 export function useTranscriptDigest(): UseTranscriptDigestResult {
@@ -24,6 +30,7 @@ export function useTranscriptDigest(): UseTranscriptDigestResult {
   const [isLoading, setIsLoading] = useState(true);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingDigest, setPendingDigest] = useState<TranscriptDigest | null>(null);
 
@@ -81,15 +88,48 @@ export function useTranscriptDigest(): UseTranscriptDigestResult {
 
   const discardPending = useCallback(() => setPendingDigest(null), []);
 
+  const update = useCallback(async (id: string, patch: MeetingDigestUpdate) => {
+    setIsMutating(true);
+    setError(null);
+    try {
+      const updated = await updateDigest(id, patch);
+      setDigests((prev) => prev.map((d) => (d.id === id ? updated : d)));
+      return true;
+    } catch (err) {
+      setError(err instanceof ServiceError ? err.message : 'Something went wrong.');
+      return false;
+    } finally {
+      setIsMutating(false);
+    }
+  }, []);
+
+  const remove = useCallback(async (id: string) => {
+    setIsMutating(true);
+    setError(null);
+    try {
+      await deleteDigest(id);
+      setDigests((prev) => prev.filter((d) => d.id !== id));
+      return true;
+    } catch (err) {
+      setError(err instanceof ServiceError ? err.message : 'Something went wrong.');
+      return false;
+    } finally {
+      setIsMutating(false);
+    }
+  }, []);
+
   return {
     digests,
     isLoading,
     isSummarizing,
     isSaving,
+    isMutating,
     error,
     pendingDigest,
     summarize,
     save,
     discardPending,
+    update,
+    remove,
   };
 }

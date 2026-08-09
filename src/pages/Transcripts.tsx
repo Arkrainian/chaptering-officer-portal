@@ -6,6 +6,49 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { PageHeading } from '@/components/ui/PageHeading';
+import type { ActionItem, MeetingDigest } from '@/types/database';
+
+function linesToArray(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function actionItemsToText(items: ActionItem[]): string {
+  return items.map((item) => [item.owner, item.task, item.due].join(' | ')).join('\n');
+}
+
+function textToActionItems(text: string): ActionItem[] {
+  return linesToArray(text).map((line) => {
+    const [owner = '', task = '', due = ''] = line.split('|').map((part) => part.trim());
+    return { owner, task, due };
+  });
+}
+
+interface DigestFormState {
+  title: string;
+  overview: string;
+  decisions: string;
+  actionItems: string;
+  keyPoints: string;
+  openQuestions: string;
+  attendees: string;
+  personId: string;
+}
+
+function digestToFormState(digest: MeetingDigest): DigestFormState {
+  return {
+    title: digest.title,
+    overview: digest.overview,
+    decisions: digest.decisions.join('\n'),
+    actionItems: actionItemsToText(digest.action_items),
+    keyPoints: digest.key_points.join('\n'),
+    openQuestions: digest.open_questions.join('\n'),
+    attendees: digest.attendees.join(', '),
+    personId: digest.person_id ?? '',
+  };
+}
 
 export function Transcripts() {
   const {
@@ -13,17 +56,22 @@ export function Transcripts() {
     isLoading,
     isSummarizing,
     isSaving,
+    isMutating,
     error,
     pendingDigest,
     summarize,
     save,
     discardPending,
+    update,
+    remove,
   } = useTranscriptDigest();
   const { people, addPerson } = usePeople();
   const [transcript, setTranscript] = useState('');
   const [selectedPersonId, setSelectedPersonId] = useState('');
   const [newPersonName, setNewPersonName] = useState('');
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<DigestFormState | null>(null);
 
   const counts = useMemo(() => {
     const map = new Map<string, number>();
@@ -60,6 +108,43 @@ export function Transcripts() {
       setTranscript('');
       setSelectedPersonId('');
     }
+  };
+
+  const startEditing = (digest: MeetingDigest) => {
+    setEditingId(digest.id);
+    setEditForm(digestToFormState(digest));
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditForm(null);
+  };
+
+  const handleUpdate = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingId || !editForm) return;
+    const saved = await update(editingId, {
+      title: editForm.title.trim(),
+      overview: editForm.overview.trim(),
+      decisions: linesToArray(editForm.decisions),
+      action_items: textToActionItems(editForm.actionItems),
+      key_points: linesToArray(editForm.keyPoints),
+      open_questions: linesToArray(editForm.openQuestions),
+      attendees: editForm.attendees
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean),
+      person_id: editForm.personId || null,
+    });
+    if (saved) {
+      cancelEditing();
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this digest? This cannot be undone.')) return;
+    await remove(id);
+    if (editingId === id) cancelEditing();
   };
 
   return (
@@ -216,6 +301,99 @@ export function Transcripts() {
             <ul className="space-y-3">
               {visibleDigests.map((digest) => {
                 const person = people.find((p) => p.id === digest.person_id);
+
+                if (editingId === digest.id && editForm) {
+                  return (
+                    <li key={digest.id}>
+                      <Card>
+                        <form className="flex flex-col gap-3" onSubmit={handleUpdate}>
+                          <Input
+                            aria-label="Title"
+                            placeholder="Title"
+                            value={editForm.title}
+                            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                          />
+                          <Textarea
+                            aria-label="Overview"
+                            placeholder="Overview"
+                            rows={3}
+                            value={editForm.overview}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, overview: e.target.value })
+                            }
+                          />
+                          <EditField
+                            label="Decisions (one per line)"
+                            value={editForm.decisions}
+                            onChange={(v) => setEditForm({ ...editForm, decisions: v })}
+                          />
+                          <EditField
+                            label="Action items (owner | task | due, one per line)"
+                            value={editForm.actionItems}
+                            onChange={(v) => setEditForm({ ...editForm, actionItems: v })}
+                          />
+                          <EditField
+                            label="Key points (one per line)"
+                            value={editForm.keyPoints}
+                            onChange={(v) => setEditForm({ ...editForm, keyPoints: v })}
+                          />
+                          <EditField
+                            label="Open questions (one per line)"
+                            value={editForm.openQuestions}
+                            onChange={(v) => setEditForm({ ...editForm, openQuestions: v })}
+                          />
+                          <div>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Attendees (comma separated)
+                            </label>
+                            <Input
+                              className="mt-1"
+                              aria-label="Attendees"
+                              value={editForm.attendees}
+                              onChange={(e) =>
+                                setEditForm({ ...editForm, attendees: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Filed under
+                            </label>
+                            <select
+                              aria-label="Person"
+                              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                              value={editForm.personId}
+                              onChange={(e) =>
+                                setEditForm({ ...editForm, personId: e.target.value })
+                              }
+                            >
+                              <option value="">No person</option>
+                              {people.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={cancelEditing}
+                              disabled={isMutating}
+                            >
+                              Cancel
+                            </Button>
+                            <Button type="submit" disabled={isMutating}>
+                              {isMutating ? 'Saving…' : 'Save changes'}
+                            </Button>
+                          </div>
+                        </form>
+                      </Card>
+                    </li>
+                  );
+                }
+
                 return (
                   <li key={digest.id}>
                     <Card>
@@ -231,6 +409,23 @@ export function Transcripts() {
                         <p className="mt-1 text-xs font-medium text-slate-500">{person.name}</p>
                       )}
                       <p className="mt-2 text-sm text-slate-700">{digest.overview}</p>
+                      <div className="mt-3 flex justify-end gap-2">
+                        <Button
+                          variant="secondary"
+                          onClick={() => startEditing(digest)}
+                          disabled={isMutating}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="text-red-600 hover:bg-red-50"
+                          onClick={() => handleDelete(digest.id)}
+                          disabled={isMutating}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </Card>
                   </li>
                 );
@@ -239,6 +434,31 @@ export function Transcripts() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function EditField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </label>
+      <Textarea
+        className="mt-1"
+        aria-label={label}
+        rows={3}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }
