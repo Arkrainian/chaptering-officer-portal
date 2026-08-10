@@ -1,12 +1,17 @@
 import { type FormEvent, useMemo, useState } from 'react';
 import { useTranscriptDigest } from '@/hooks/useTranscriptDigest';
 import { usePeople } from '@/hooks/usePeople';
+import { useLocations } from '@/hooks/useLocations';
 import { Card } from '@/components/ui/Card';
 import { Textarea } from '@/components/ui/Textarea';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { PageHeading } from '@/components/ui/PageHeading';
-import type { ActionItem, MeetingDigest } from '@/types/database';
+import type { ActionItem, ChapterLocation, MeetingDigest, Person } from '@/types/database';
+
+const UNASSIGNED = '__unassigned__';
+const selectClassName =
+  'rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200';
 
 function linesToArray(text: string): string[] {
   return text
@@ -68,15 +73,18 @@ export function Transcripts() {
     remove,
   } = useTranscriptDigest();
   const { people, addPerson } = usePeople();
+  const { locations, addLocation } = useLocations();
   const [transcript, setTranscript] = useState('');
   const [selectedPersonId, setSelectedPersonId] = useState('');
-  const [newPersonName, setNewPersonName] = useState('');
   const [notes, setNotes] = useState('');
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
+  const [activePersonId, setActivePersonId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<DigestFormState | null>(null);
 
-  const counts = useMemo(() => {
+  const personById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+
+  const personCounts = useMemo(() => {
     const map = new Map<string, number>();
     for (const digest of digests) {
       if (digest.person_id) {
@@ -86,23 +94,38 @@ export function Transcripts() {
     return map;
   }, [digests]);
 
+  const locationCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const [personId, count] of personCounts) {
+      const person = personById.get(personId);
+      const key = person?.location_id ?? UNASSIGNED;
+      map.set(key, (map.get(key) ?? 0) + count);
+    }
+    return map;
+  }, [personCounts, personById]);
+
   const visibleDigests = useMemo(() => {
-    if (!activeFilter) return digests;
-    return digests.filter((digest) => digest.person_id === activeFilter);
-  }, [digests, activeFilter]);
+    if (activePersonId) {
+      return digests.filter((digest) => digest.person_id === activePersonId);
+    }
+    if (activeLocationId) {
+      return digests.filter((digest) => {
+        const person = digest.person_id ? personById.get(digest.person_id) : undefined;
+        const locationKey = person?.location_id ?? UNASSIGNED;
+        return locationKey === activeLocationId;
+      });
+    }
+    return digests;
+  }, [digests, activeLocationId, activePersonId, personById]);
+
+  const selectLocationFilter = (id: string | null) => {
+    setActiveLocationId(id);
+    setActivePersonId(null);
+  };
 
   const handleSummarize = async (event: FormEvent) => {
     event.preventDefault();
     await summarize(transcript);
-  };
-
-  const handleAddPerson = async (event: FormEvent) => {
-    event.preventDefault();
-    const person = await addPerson(newPersonName);
-    if (person) {
-      setNewPersonName('');
-      setSelectedPersonId(person.id);
-    }
   };
 
   const handleSave = async () => {
@@ -182,7 +205,9 @@ export function Transcripts() {
       {pendingDigest && (
         <Card className="mt-6">
           <div className="flex items-start justify-between gap-4">
-            <h2 className="text-sm font-semibold text-slate-900">{pendingDigest.title || 'Digest'}</h2>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {pendingDigest.title || 'Digest'}
+            </h2>
             <div className="flex shrink-0 gap-2">
               <Button variant="secondary" onClick={discardPending} disabled={isSaving}>
                 Discard
@@ -223,41 +248,15 @@ export function Transcripts() {
           )}
 
           <div className="mt-4 border-t border-slate-200 pt-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              File under
-            </h3>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select
-                aria-label="Person"
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                value={selectedPersonId}
-                onChange={(e) => setSelectedPersonId(e.target.value)}
-                disabled={isSaving}
-              >
-                <option value="">No person</option>
-                {people.map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.name}
-                  </option>
-                ))}
-              </select>
-              <form className="flex gap-2" onSubmit={handleAddPerson}>
-                <Input
-                  aria-label="New person name"
-                  placeholder="Add a new person…"
-                  value={newPersonName}
-                  onChange={(e) => setNewPersonName(e.target.value)}
-                  className="w-40"
-                />
-                <Button
-                  type="submit"
-                  variant="secondary"
-                  disabled={newPersonName.trim().length === 0}
-                >
-                  Add
-                </Button>
-              </form>
-            </div>
+            <PersonPicker
+              people={people}
+              locations={locations}
+              personId={selectedPersonId}
+              onPersonChange={setSelectedPersonId}
+              onAddPerson={addPerson}
+              onAddLocation={addLocation}
+              disabled={isSaving}
+            />
           </div>
 
           <div className="mt-4">
@@ -278,33 +277,43 @@ export function Transcripts() {
       <div className="mt-8">
         <h2 className="text-sm font-semibold text-slate-900">Saved digests</h2>
 
-        {people.length > 0 && (
+        {(locations.length > 0 || people.length > 0) && (
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveFilter(null)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                activeFilter === null
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-300 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              All ({digests.length})
-            </button>
-            {people.map((person) => (
-              <button
-                key={person.id}
-                type="button"
-                onClick={() => setActiveFilter(person.id)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                  activeFilter === person.id
-                    ? 'border-slate-900 bg-slate-900 text-white'
-                    : 'border-slate-300 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                {person.name} ({counts.get(person.id) ?? 0})
-              </button>
+            <FilterPill
+              active={activeLocationId === null}
+              onClick={() => selectLocationFilter(null)}
+              label={`All (${digests.length})`}
+            />
+            {locations.map((location) => (
+              <FilterPill
+                key={location.id}
+                active={activeLocationId === location.id}
+                onClick={() => selectLocationFilter(location.id)}
+                label={`${location.name} (${locationCounts.get(location.id) ?? 0})`}
+              />
             ))}
+            {(locationCounts.get(UNASSIGNED) ?? 0) > 0 && (
+              <FilterPill
+                active={activeLocationId === UNASSIGNED}
+                onClick={() => selectLocationFilter(UNASSIGNED)}
+                label={`No chapter location (${locationCounts.get(UNASSIGNED) ?? 0})`}
+              />
+            )}
+          </div>
+        )}
+
+        {activeLocationId && (
+          <div className="mt-2 flex flex-wrap gap-2 pl-4">
+            {people
+              .filter((p) => (p.location_id ?? UNASSIGNED) === activeLocationId)
+              .map((person) => (
+                <FilterPill
+                  key={person.id}
+                  active={activePersonId === person.id}
+                  onClick={() => setActivePersonId(person.id)}
+                  label={`${person.name} (${personCounts.get(person.id) ?? 0})`}
+                />
+              ))}
           </div>
         )}
 
@@ -313,7 +322,9 @@ export function Transcripts() {
             <p className="text-sm text-slate-500">Loading digests…</p>
           ) : visibleDigests.length === 0 ? (
             <p className="text-sm text-slate-500">
-              {activeFilter ? 'No digests filed under this person yet.' : 'No digests saved yet.'}
+              {activeLocationId
+                ? 'No digests filed under this category yet.'
+                : 'No digests saved yet.'}
             </p>
           ) : (
             <ul className="space-y-3">
@@ -336,9 +347,7 @@ export function Transcripts() {
                             placeholder="Overview"
                             rows={3}
                             value={editForm.overview}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, overview: e.target.value })
-                            }
+                            onChange={(e) => setEditForm({ ...editForm, overview: e.target.value })}
                           />
                           <EditField
                             label="Decisions (one per line)"
@@ -373,26 +382,15 @@ export function Transcripts() {
                               }
                             />
                           </div>
-                          <div>
-                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              Filed under
-                            </label>
-                            <select
-                              aria-label="Person"
-                              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
-                              value={editForm.personId}
-                              onChange={(e) =>
-                                setEditForm({ ...editForm, personId: e.target.value })
-                              }
-                            >
-                              <option value="">No person</option>
-                              {people.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                          <PersonPicker
+                            people={people}
+                            locations={locations}
+                            personId={editForm.personId}
+                            onPersonChange={(personId) => setEditForm({ ...editForm, personId })}
+                            onAddPerson={addPerson}
+                            onAddLocation={addLocation}
+                            disabled={isMutating}
+                          />
                           <EditField
                             label="Notes"
                             value={editForm.notes}
@@ -429,7 +427,11 @@ export function Transcripts() {
                         </span>
                       </div>
                       {person && (
-                        <p className="mt-1 text-xs font-medium text-slate-500">{person.name}</p>
+                        <p className="mt-1 text-xs font-medium text-slate-500">
+                          {person.name}
+                          {person.location_id &&
+                            ` · ${locations.find((l) => l.id === person.location_id)?.name ?? ''}`}
+                        </p>
                       )}
                       <p className="mt-2 text-sm text-slate-700">{digest.overview}</p>
                       {digest.notes && (
@@ -461,6 +463,155 @@ export function Transcripts() {
             </ul>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function FilterPill({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1 text-xs font-medium ${
+        active
+          ? 'border-slate-900 bg-slate-900 text-white'
+          : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function PersonPicker({
+  people,
+  locations,
+  personId,
+  onPersonChange,
+  onAddPerson,
+  onAddLocation,
+  disabled,
+}: {
+  people: Person[];
+  locations: ChapterLocation[];
+  personId: string;
+  onPersonChange: (personId: string) => void;
+  onAddPerson: (name: string, locationId: string | null) => Promise<Person | null>;
+  onAddLocation: (name: string) => Promise<ChapterLocation | null>;
+  disabled?: boolean;
+}) {
+  const [newPersonName, setNewPersonName] = useState('');
+  const [newPersonLocationId, setNewPersonLocationId] = useState('');
+  const [newLocationName, setNewLocationName] = useState('');
+
+  const unassignedPeople = people.filter((p) => !p.location_id);
+
+  const handleAddLocation = async (event: FormEvent) => {
+    event.preventDefault();
+    const location = await onAddLocation(newLocationName);
+    if (location) {
+      setNewLocationName('');
+      setNewPersonLocationId(location.id);
+    }
+  };
+
+  const handleAddPerson = async (event: FormEvent) => {
+    event.preventDefault();
+    const person = await onAddPerson(newPersonName, newPersonLocationId || null);
+    if (person) {
+      setNewPersonName('');
+      onPersonChange(person.id);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Chapter location / person
+        </label>
+        <select
+          aria-label="Person"
+          className={`mt-1 w-full ${selectClassName}`}
+          value={personId}
+          onChange={(e) => onPersonChange(e.target.value)}
+          disabled={disabled}
+        >
+          <option value="">No person</option>
+          {locations.map((location) => {
+            const inLocation = people.filter((p) => p.location_id === location.id);
+            if (inLocation.length === 0) return null;
+            return (
+              <optgroup key={location.id} label={location.name}>
+                {inLocation.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
+          {unassignedPeople.length > 0 && (
+            <optgroup label="No chapter location">
+              {unassignedPeople.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+      </div>
+
+      <div className="rounded-md border border-dashed border-slate-300 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Add yourself</p>
+        <form className="mt-2 flex flex-wrap items-center gap-2" onSubmit={handleAddPerson}>
+          <Input
+            aria-label="Your name"
+            placeholder="Your name…"
+            value={newPersonName}
+            onChange={(e) => setNewPersonName(e.target.value)}
+            className="w-36"
+          />
+          <select
+            aria-label="Chapter location for new person"
+            className={selectClassName}
+            value={newPersonLocationId}
+            onChange={(e) => setNewPersonLocationId(e.target.value)}
+          >
+            <option value="">No chapter location</option>
+            {locations.map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+          <Button type="submit" variant="secondary" disabled={newPersonName.trim().length === 0}>
+            Add
+          </Button>
+        </form>
+
+        <form className="mt-2 flex flex-wrap items-center gap-2" onSubmit={handleAddLocation}>
+          <Input
+            aria-label="New chapter location name"
+            placeholder="New chapter location…"
+            value={newLocationName}
+            onChange={(e) => setNewLocationName(e.target.value)}
+            className="w-36"
+          />
+          <Button type="submit" variant="secondary" disabled={newLocationName.trim().length === 0}>
+            Add location
+          </Button>
+        </form>
       </div>
     </div>
   );

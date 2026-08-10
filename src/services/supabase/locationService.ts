@@ -1,33 +1,33 @@
 import { isSupabaseConfigured, supabase } from './client';
-import type { Person } from '@/types/database';
+import type { ChapterLocation } from '@/types/database';
 
-const TABLE = 'people';
+const TABLE = 'chapter_locations';
 
 export class ServiceError extends Error {}
 
 function logError(context: string, error: unknown): void {
-  console.error(`[personService] ${context}:`, error);
+  console.error(`[locationService] ${context}:`, error);
 }
 
-export async function fetchPeople(): Promise<Person[]> {
+export async function fetchLocations(): Promise<ChapterLocation[]> {
   if (!isSupabaseConfigured) {
     throw new ServiceError('Database is not configured yet. Set up your .env file to continue.');
   }
 
   const { data, error } = await supabase
     .from(TABLE)
-    .select('id, name, created_at, location_id')
+    .select('id, name, created_at')
     .order('name', { ascending: true });
 
   if (error) {
-    logError('fetchPeople', error);
-    throw new ServiceError('Could not load people. Please try again.');
+    logError('fetchLocations', error);
+    throw new ServiceError('Could not load chapter locations. Please try again.');
   }
 
   return data ?? [];
 }
 
-export async function createPerson(name: string, locationId: string | null): Promise<Person> {
+export async function createLocation(name: string): Promise<ChapterLocation> {
   if (!isSupabaseConfigured) {
     throw new ServiceError('Database is not configured yet. Set up your .env file to continue.');
   }
@@ -39,13 +39,13 @@ export async function createPerson(name: string, locationId: string | null): Pro
 
   const { data, error } = await supabase
     .from(TABLE)
-    .insert({ name: trimmed, location_id: locationId })
-    .select('id, name, created_at, location_id')
+    .insert({ name: trimmed })
+    .select('id, name, created_at')
     .single();
 
   if (error) {
-    logError('createPerson', error);
-    throw new ServiceError('Could not add that person. Please try again.');
+    logError('createLocation', error);
+    throw new ServiceError('Could not add that chapter location. Please try again.');
   }
 
   return data;

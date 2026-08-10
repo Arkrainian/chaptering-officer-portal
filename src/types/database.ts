@@ -14,14 +14,26 @@ export interface ActionItem {
   due: string;
 }
 
-export interface Person {
+export interface ChapterLocation {
   id: string;
   name: string;
   created_at: string;
 }
 
+export interface ChapterLocationInsert {
+  name: string;
+}
+
+export interface Person {
+  id: string;
+  name: string;
+  created_at: string;
+  location_id: string | null;
+}
+
 export interface PersonInsert {
   name: string;
+  location_id: string | null;
 }
 
 export interface TranscriptDigest {

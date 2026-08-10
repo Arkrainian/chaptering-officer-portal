@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createPerson, fetchPeople, ServiceError } from '@/services/supabase/personService';
-import type { Person } from '@/types/database';
+import { createLocation, fetchLocations, ServiceError } from '@/services/supabase/locationService';
+import type { ChapterLocation } from '@/types/database';
 
-interface UsePeopleResult {
-  people: Person[];
+interface UseLocationsResult {
+  locations: ChapterLocation[];
   isLoading: boolean;
   error: string | null;
-  addPerson: (name: string, locationId: string | null) => Promise<Person | null>;
+  addLocation: (name: string) => Promise<ChapterLocation | null>;
 }
 
-export function usePeople(): UsePeopleResult {
-  const [people, setPeople] = useState<Person[]>([]);
+export function useLocations(): UseLocationsResult {
+  const [locations, setLocations] = useState<ChapterLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,8 +18,8 @@ export function usePeople(): UsePeopleResult {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await fetchPeople();
-      setPeople(data);
+      const data = await fetchLocations();
+      setLocations(data);
     } catch (err) {
       setError(err instanceof ServiceError ? err.message : 'Something went wrong.');
     } finally {
@@ -32,17 +32,17 @@ export function usePeople(): UsePeopleResult {
     void refresh();
   }, [refresh]);
 
-  const addPerson = useCallback(async (name: string, locationId: string | null) => {
+  const addLocation = useCallback(async (name: string) => {
     setError(null);
     try {
-      const person = await createPerson(name, locationId);
-      setPeople((prev) => [...prev, person].sort((a, b) => a.name.localeCompare(b.name)));
-      return person;
+      const location = await createLocation(name);
+      setLocations((prev) => [...prev, location].sort((a, b) => a.name.localeCompare(b.name)));
+      return location;
     } catch (err) {
       setError(err instanceof ServiceError ? err.message : 'Something went wrong.');
       return null;
     }
   }, []);
 
-  return { people, isLoading, error, addPerson };
+  return { locations, isLoading, error, addLocation };
 }
