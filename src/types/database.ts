@@ -14,6 +14,16 @@ export interface ActionItem {
   due: string;
 }
 
+export interface Note {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
+export interface NoteInsert {
+  content: string;
+}
+
 export interface Person {
   id: string;
   name: string;
