@@ -5,7 +5,6 @@ import { Home } from '@/pages/Home';
 import { Dashboard } from '@/pages/Dashboard';
 import { Officers } from '@/pages/Officers';
 import { Transcripts } from '@/pages/Transcripts';
-import { Notes } from '@/pages/Notes';
 import { Login } from '@/pages/Login';
 import { NotFound } from '@/pages/NotFound';
 
@@ -19,7 +18,6 @@ export function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="officers" element={<Officers />} />
           <Route path="transcripts" element={<Transcripts />} />
-          <Route path="notes" element={<Notes />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

@@ -19,7 +19,7 @@ interface UseTranscriptDigestResult {
   error: string | null;
   pendingDigest: TranscriptDigest | null;
   summarize: (transcript: string) => Promise<void>;
-  save: (transcript: string, personId: string | null) => Promise<boolean>;
+  save: (transcript: string, personId: string | null, notes: string) => Promise<boolean>;
   discardPending: () => void;
   update: (id: string, patch: MeetingDigestUpdate) => Promise<boolean>;
   remove: (id: string) => Promise<boolean>;
@@ -67,12 +67,17 @@ export function useTranscriptDigest(): UseTranscriptDigestResult {
   }, []);
 
   const save = useCallback(
-    async (transcript: string, personId: string | null) => {
+    async (transcript: string, personId: string | null, notes: string) => {
       if (!pendingDigest) return false;
       setIsSaving(true);
       setError(null);
       try {
-        await saveDigest({ ...pendingDigest, transcript: transcript.trim(), person_id: personId });
+        await saveDigest({
+          ...pendingDigest,
+          transcript: transcript.trim(),
+          person_id: personId,
+          notes: notes.trim(),
+        });
         setPendingDigest(null);
         await refresh();
         return true;

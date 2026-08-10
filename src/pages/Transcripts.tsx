@@ -35,6 +35,7 @@ interface DigestFormState {
   openQuestions: string;
   attendees: string;
   personId: string;
+  notes: string;
 }
 
 function digestToFormState(digest: MeetingDigest): DigestFormState {
@@ -47,6 +48,7 @@ function digestToFormState(digest: MeetingDigest): DigestFormState {
     openQuestions: digest.open_questions.join('\n'),
     attendees: digest.attendees.join(', '),
     personId: digest.person_id ?? '',
+    notes: digest.notes,
   };
 }
 
@@ -69,6 +71,7 @@ export function Transcripts() {
   const [transcript, setTranscript] = useState('');
   const [selectedPersonId, setSelectedPersonId] = useState('');
   const [newPersonName, setNewPersonName] = useState('');
+  const [notes, setNotes] = useState('');
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<DigestFormState | null>(null);
@@ -103,10 +106,11 @@ export function Transcripts() {
   };
 
   const handleSave = async () => {
-    const saved = await save(transcript, selectedPersonId || null);
+    const saved = await save(transcript, selectedPersonId || null, notes);
     if (saved) {
       setTranscript('');
       setSelectedPersonId('');
+      setNotes('');
     }
   };
 
@@ -135,6 +139,7 @@ export function Transcripts() {
         .map((name) => name.trim())
         .filter(Boolean),
       person_id: editForm.personId || null,
+      notes: editForm.notes.trim(),
     });
     if (saved) {
       cancelEditing();
@@ -253,6 +258,19 @@ export function Transcripts() {
                 </Button>
               </form>
             </div>
+          </div>
+
+          <div className="mt-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Notes</h3>
+            <Textarea
+              className="mt-2"
+              aria-label="Notes"
+              placeholder="Add any extra notes about this meeting…"
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={isSaving}
+            />
           </div>
         </Card>
       )}
@@ -375,6 +393,11 @@ export function Transcripts() {
                               ))}
                             </select>
                           </div>
+                          <EditField
+                            label="Notes"
+                            value={editForm.notes}
+                            onChange={(v) => setEditForm({ ...editForm, notes: v })}
+                          />
                           <div className="flex justify-end gap-2">
                             <Button
                               type="button"
@@ -409,6 +432,11 @@ export function Transcripts() {
                         <p className="mt-1 text-xs font-medium text-slate-500">{person.name}</p>
                       )}
                       <p className="mt-2 text-sm text-slate-700">{digest.overview}</p>
+                      {digest.notes && (
+                        <p className="mt-2 whitespace-pre-wrap rounded-md bg-slate-50 p-2 text-sm text-slate-600">
+                          {digest.notes}
+                        </p>
+                      )}
                       <div className="mt-3 flex justify-end gap-2">
                         <Button
                           variant="secondary"

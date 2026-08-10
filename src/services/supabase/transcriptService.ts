@@ -4,6 +4,8 @@ import type { MeetingDigest, MeetingDigestInsert, TranscriptDigest } from '@/typ
 export type MeetingDigestUpdate = Partial<Omit<MeetingDigest, 'id' | 'created_at'>>;
 
 const TABLE = 'meeting_digests';
+const COLUMNS =
+  'id, title, transcript, overview, decisions, action_items, key_points, open_questions, attendees, created_at, person_id, notes';
 
 export class ServiceError extends Error {}
 
@@ -21,9 +23,12 @@ export async function summarizeTranscript(transcript: string): Promise<Transcrip
     throw new ServiceError('Paste a transcript before summarizing.');
   }
 
-  const { data, error } = await supabase.functions.invoke<TranscriptDigest>('summarize-transcript', {
-    body: { transcript: trimmed },
-  });
+  const { data, error } = await supabase.functions.invoke<TranscriptDigest>(
+    'summarize-transcript',
+    {
+      body: { transcript: trimmed },
+    },
+  );
 
   if (error || !data) {
     logError('summarizeTranscript', error);
@@ -40,9 +45,7 @@ export async function fetchDigests(): Promise<MeetingDigest[]> {
 
   const { data, error } = await supabase
     .from(TABLE)
-    .select(
-      'id, title, transcript, overview, decisions, action_items, key_points, open_questions, attendees, created_at, person_id',
-    )
+    .select(COLUMNS)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -58,13 +61,7 @@ export async function saveDigest(digest: MeetingDigestInsert): Promise<MeetingDi
     throw new ServiceError('Database is not configured yet. Set up your .env file to continue.');
   }
 
-  const { data, error } = await supabase
-    .from(TABLE)
-    .insert(digest)
-    .select(
-      'id, title, transcript, overview, decisions, action_items, key_points, open_questions, attendees, created_at, person_id',
-    )
-    .single();
+  const { data, error } = await supabase.from(TABLE).insert(digest).select(COLUMNS).single();
 
   if (error) {
     logError('saveDigest', error);
@@ -74,10 +71,7 @@ export async function saveDigest(digest: MeetingDigestInsert): Promise<MeetingDi
   return data;
 }
 
-export async function updateDigest(
-  id: string,
-  patch: MeetingDigestUpdate,
-): Promise<MeetingDigest> {
+export async function updateDigest(id: string, patch: MeetingDigestUpdate): Promise<MeetingDigest> {
   if (!isSupabaseConfigured) {
     throw new ServiceError('Database is not configured yet. Set up your .env file to continue.');
   }
@@ -86,9 +80,7 @@ export async function updateDigest(
     .from(TABLE)
     .update(patch)
     .eq('id', id)
-    .select(
-      'id, title, transcript, overview, decisions, action_items, key_points, open_questions, attendees, created_at, person_id',
-    )
+    .select(COLUMNS)
     .single();
 
   if (error) {
