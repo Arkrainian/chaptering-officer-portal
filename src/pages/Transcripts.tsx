@@ -1,4 +1,5 @@
 import { type FormEvent, useMemo, useState } from 'react';
+import { cn } from '@/lib/cn';
 import { useTranscriptDigest } from '@/hooks/useTranscriptDigest';
 import { usePeople } from '@/hooks/usePeople';
 import { useLocations } from '@/hooks/useLocations';
@@ -205,15 +206,20 @@ export function Transcripts() {
       {pendingDigest && (
         <Card className="mt-6">
           <div className="flex items-start justify-between gap-4">
-            <h2 className="text-sm font-semibold text-slate-900">
-              {pendingDigest.title || 'Digest'}
-            </h2>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Review &amp; save
+              </p>
+              <h2 className="mt-0.5 text-base font-semibold text-slate-900">
+                {pendingDigest.title || 'Digest'}
+              </h2>
+            </div>
             <div className="flex shrink-0 gap-2">
               <Button variant="secondary" onClick={discardPending} disabled={isSaving}>
                 Discard
               </Button>
               <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? 'Saving…' : 'Save to database'}
+                {isSaving ? 'Saving…' : 'Save'}
               </Button>
             </div>
           </div>
@@ -247,29 +253,39 @@ export function Transcripts() {
             </p>
           )}
 
-          <div className="mt-4 border-t border-slate-200 pt-4">
-            <PersonPicker
-              people={people}
-              locations={locations}
-              personId={selectedPersonId}
-              onPersonChange={setSelectedPersonId}
-              onAddPerson={addPerson}
-              onAddLocation={addLocation}
-              disabled={isSaving}
-            />
-          </div>
+          <div className="mt-5 rounded-lg border border-slate-200 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              File this transcript
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Choose your chapter location, then yourself (or add either if they're new).
+            </p>
+            <div className="mt-3">
+              <PersonPicker
+                people={people}
+                locations={locations}
+                personId={selectedPersonId}
+                onPersonChange={setSelectedPersonId}
+                onAddPerson={addPerson}
+                onAddLocation={addLocation}
+                disabled={isSaving}
+              />
+            </div>
 
-          <div className="mt-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Notes</h3>
-            <Textarea
-              className="mt-2"
-              aria-label="Notes"
-              placeholder="Add any extra notes about this meeting…"
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              disabled={isSaving}
-            />
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Notes (optional)
+              </label>
+              <Textarea
+                className="mt-2"
+                aria-label="Notes"
+                placeholder="Add any extra notes about this meeting…"
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                disabled={isSaving}
+              />
+            </div>
           </div>
         </Card>
       )}
@@ -278,42 +294,65 @@ export function Transcripts() {
         <h2 className="text-sm font-semibold text-slate-900">Saved digests</h2>
 
         {(locations.length > 0 || people.length > 0) && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <FilterPill
-              active={activeLocationId === null}
-              onClick={() => selectLocationFilter(null)}
-              label={`All (${digests.length})`}
-            />
-            {locations.map((location) => (
+          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Filter by chapter location
+              </p>
+              {(activeLocationId || activePersonId) && (
+                <button
+                  type="button"
+                  onClick={() => selectLocationFilter(null)}
+                  className="text-xs font-medium text-slate-500 underline hover:text-slate-700"
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
               <FilterPill
-                key={location.id}
-                active={activeLocationId === location.id}
-                onClick={() => selectLocationFilter(location.id)}
-                label={`${location.name} (${locationCounts.get(location.id) ?? 0})`}
+                active={activeLocationId === null}
+                onClick={() => selectLocationFilter(null)}
+                label={`All (${digests.length})`}
               />
-            ))}
-            {(locationCounts.get(UNASSIGNED) ?? 0) > 0 && (
-              <FilterPill
-                active={activeLocationId === UNASSIGNED}
-                onClick={() => selectLocationFilter(UNASSIGNED)}
-                label={`No chapter location (${locationCounts.get(UNASSIGNED) ?? 0})`}
-              />
-            )}
-          </div>
-        )}
-
-        {activeLocationId && (
-          <div className="mt-2 flex flex-wrap gap-2 pl-4">
-            {people
-              .filter((p) => (p.location_id ?? UNASSIGNED) === activeLocationId)
-              .map((person) => (
+              {locations.map((location) => (
                 <FilterPill
-                  key={person.id}
-                  active={activePersonId === person.id}
-                  onClick={() => setActivePersonId(person.id)}
-                  label={`${person.name} (${personCounts.get(person.id) ?? 0})`}
+                  key={location.id}
+                  active={activeLocationId === location.id}
+                  onClick={() => selectLocationFilter(location.id)}
+                  label={`${location.name} (${locationCounts.get(location.id) ?? 0})`}
                 />
               ))}
+              {(locationCounts.get(UNASSIGNED) ?? 0) > 0 && (
+                <FilterPill
+                  active={activeLocationId === UNASSIGNED}
+                  onClick={() => selectLocationFilter(UNASSIGNED)}
+                  label={`No chapter location (${locationCounts.get(UNASSIGNED) ?? 0})`}
+                />
+              )}
+            </div>
+
+            {activeLocationId && (
+              <div className="mt-3 border-t border-slate-200 pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {activeLocationId === UNASSIGNED
+                    ? 'People with no chapter location'
+                    : `People in ${locations.find((l) => l.id === activeLocationId)?.name ?? ''}`}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {people
+                    .filter((p) => (p.location_id ?? UNASSIGNED) === activeLocationId)
+                    .map((person) => (
+                      <FilterPill
+                        key={person.id}
+                        active={activePersonId === person.id}
+                        onClick={() => setActivePersonId(person.id)}
+                        label={`${person.name} (${personCounts.get(person.id) ?? 0})`}
+                      />
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -335,68 +374,90 @@ export function Transcripts() {
                   return (
                     <li key={digest.id}>
                       <Card>
-                        <form className="flex flex-col gap-3" onSubmit={handleUpdate}>
-                          <Input
-                            aria-label="Title"
-                            placeholder="Title"
-                            value={editForm.title}
-                            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                          />
-                          <Textarea
-                            aria-label="Overview"
-                            placeholder="Overview"
-                            rows={3}
-                            value={editForm.overview}
-                            onChange={(e) => setEditForm({ ...editForm, overview: e.target.value })}
-                          />
-                          <EditField
-                            label="Decisions (one per line)"
-                            value={editForm.decisions}
-                            onChange={(v) => setEditForm({ ...editForm, decisions: v })}
-                          />
-                          <EditField
-                            label="Action items (owner | task | due, one per line)"
-                            value={editForm.actionItems}
-                            onChange={(v) => setEditForm({ ...editForm, actionItems: v })}
-                          />
-                          <EditField
-                            label="Key points (one per line)"
-                            value={editForm.keyPoints}
-                            onChange={(v) => setEditForm({ ...editForm, keyPoints: v })}
-                          />
-                          <EditField
-                            label="Open questions (one per line)"
-                            value={editForm.openQuestions}
-                            onChange={(v) => setEditForm({ ...editForm, openQuestions: v })}
-                          />
-                          <div>
-                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              Attendees (comma separated)
-                            </label>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Editing digest
+                        </p>
+                        <form className="mt-2 flex flex-col gap-5" onSubmit={handleUpdate}>
+                          <div className="flex flex-col gap-3">
                             <Input
-                              className="mt-1"
-                              aria-label="Attendees"
-                              value={editForm.attendees}
+                              aria-label="Title"
+                              placeholder="Title"
+                              value={editForm.title}
+                              onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                            />
+                            <Textarea
+                              aria-label="Overview"
+                              placeholder="Overview"
+                              rows={3}
+                              value={editForm.overview}
                               onChange={(e) =>
-                                setEditForm({ ...editForm, attendees: e.target.value })
+                                setEditForm({ ...editForm, overview: e.target.value })
                               }
                             />
                           </div>
-                          <PersonPicker
-                            people={people}
-                            locations={locations}
-                            personId={editForm.personId}
-                            onPersonChange={(personId) => setEditForm({ ...editForm, personId })}
-                            onAddPerson={addPerson}
-                            onAddLocation={addLocation}
-                            disabled={isMutating}
-                          />
+
+                          <div className="flex flex-col gap-3 border-t border-slate-200 pt-4">
+                            <EditField
+                              label="Decisions (one per line)"
+                              value={editForm.decisions}
+                              onChange={(v) => setEditForm({ ...editForm, decisions: v })}
+                            />
+                            <EditField
+                              label="Action items (owner | task | due, one per line)"
+                              value={editForm.actionItems}
+                              onChange={(v) => setEditForm({ ...editForm, actionItems: v })}
+                            />
+                            <EditField
+                              label="Key points (one per line)"
+                              value={editForm.keyPoints}
+                              onChange={(v) => setEditForm({ ...editForm, keyPoints: v })}
+                            />
+                            <EditField
+                              label="Open questions (one per line)"
+                              value={editForm.openQuestions}
+                              onChange={(v) => setEditForm({ ...editForm, openQuestions: v })}
+                            />
+                            <div>
+                              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Attendees (comma separated)
+                              </label>
+                              <Input
+                                className="mt-1"
+                                aria-label="Attendees"
+                                value={editForm.attendees}
+                                onChange={(e) =>
+                                  setEditForm({ ...editForm, attendees: e.target.value })
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div className="rounded-lg border border-slate-200 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Filed under
+                            </p>
+                            <div className="mt-3">
+                              <PersonPicker
+                                people={people}
+                                locations={locations}
+                                personId={editForm.personId}
+                                onPersonChange={(personId) =>
+                                  setEditForm({ ...editForm, personId })
+                                }
+                                onAddPerson={addPerson}
+                                onAddLocation={addLocation}
+                                disabled={isMutating}
+                              />
+                            </div>
+                          </div>
+
                           <EditField
                             label="Notes"
                             value={editForm.notes}
                             onChange={(v) => setEditForm({ ...editForm, notes: v })}
                           />
-                          <div className="flex justify-end gap-2">
+
+                          <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
                             <Button
                               type="button"
                               variant="secondary"
@@ -427,11 +488,17 @@ export function Transcripts() {
                         </span>
                       </div>
                       {person && (
-                        <p className="mt-1 text-xs font-medium text-slate-500">
-                          {person.name}
-                          {person.location_id &&
-                            ` · ${locations.find((l) => l.id === person.location_id)?.name ?? ''}`}
-                        </p>
+                        <div className="mt-1.5">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                            {person.location_id && (
+                              <>
+                                {locations.find((l) => l.id === person.location_id)?.name}
+                                <span className="text-slate-400">/</span>
+                              </>
+                            )}
+                            {person.name}
+                          </span>
+                        </div>
                       )}
                       <p className="mt-2 text-sm text-slate-700">{digest.overview}</p>
                       {digest.notes && (
@@ -509,84 +576,84 @@ function PersonPicker({
   onAddLocation: (name: string) => Promise<ChapterLocation | null>;
   disabled?: boolean;
 }) {
-  const [newPersonName, setNewPersonName] = useState('');
-  const [newPersonLocationId, setNewPersonLocationId] = useState('');
+  // Only used to scope the "person" dropdown; derived once from the current
+  // selection so switching it doesn't fight the parent's controlled value.
+  const [locationScopeId, setLocationScopeId] = useState(
+    () => people.find((p) => p.id === personId)?.location_id ?? '',
+  );
+  const [addingLocation, setAddingLocation] = useState(false);
+  const [addingPerson, setAddingPerson] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
+  const [newPersonName, setNewPersonName] = useState('');
 
-  const unassignedPeople = people.filter((p) => !p.location_id);
+  const peopleInScope = people.filter((p) => (p.location_id ?? '') === locationScopeId);
+
+  const handleLocationScopeChange = (value: string) => {
+    setLocationScopeId(value);
+    onPersonChange('');
+  };
 
   const handleAddLocation = async (event: FormEvent) => {
     event.preventDefault();
     const location = await onAddLocation(newLocationName);
     if (location) {
       setNewLocationName('');
-      setNewPersonLocationId(location.id);
+      setAddingLocation(false);
+      setLocationScopeId(location.id);
+      onPersonChange('');
     }
   };
 
   const handleAddPerson = async (event: FormEvent) => {
     event.preventDefault();
-    const person = await onAddPerson(newPersonName, newPersonLocationId || null);
+    const person = await onAddPerson(newPersonName, locationScopeId || null);
     if (person) {
       setNewPersonName('');
+      setAddingPerson(false);
       onPersonChange(person.id);
     }
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Chapter location / person
-        </label>
-        <select
-          aria-label="Person"
-          className={`mt-1 w-full ${selectClassName}`}
-          value={personId}
-          onChange={(e) => onPersonChange(e.target.value)}
-          disabled={disabled}
-        >
-          <option value="">No person</option>
-          {locations.map((location) => {
-            const inLocation = people.filter((p) => p.location_id === location.id);
-            if (inLocation.length === 0) return null;
-            return (
-              <optgroup key={location.id} label={location.name}>
-                {inLocation.map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.name}
-                  </option>
-                ))}
-              </optgroup>
-            );
-          })}
-          {unassignedPeople.length > 0 && (
-            <optgroup label="No chapter location">
-              {unassignedPeople.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
-      </div>
-
-      <div className="rounded-md border border-dashed border-slate-300 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Add yourself</p>
-        <form className="mt-2 flex flex-wrap items-center gap-2" onSubmit={handleAddPerson}>
-          <Input
-            aria-label="Your name"
-            placeholder="Your name…"
-            value={newPersonName}
-            onChange={(e) => setNewPersonName(e.target.value)}
-            className="w-36"
-          />
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            1. Chapter location
+          </label>
+          <button
+            type="button"
+            onClick={() => setAddingLocation((v) => !v)}
+            className="text-xs font-medium text-slate-500 underline hover:text-slate-700"
+            disabled={disabled}
+          >
+            {addingLocation ? 'Cancel' : '+ New location'}
+          </button>
+        </div>
+        {addingLocation ? (
+          <form className="mt-1 flex gap-2" onSubmit={handleAddLocation}>
+            <Input
+              aria-label="New chapter location name"
+              placeholder="e.g. Downtown Chapter"
+              value={newLocationName}
+              onChange={(e) => setNewLocationName(e.target.value)}
+              autoFocus
+            />
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={newLocationName.trim().length === 0}
+            >
+              Add
+            </Button>
+          </form>
+        ) : (
           <select
-            aria-label="Chapter location for new person"
-            className={selectClassName}
-            value={newPersonLocationId}
-            onChange={(e) => setNewPersonLocationId(e.target.value)}
+            aria-label="Chapter location"
+            className={cn('mt-1 w-full', selectClassName)}
+            value={locationScopeId}
+            onChange={(e) => handleLocationScopeChange(e.target.value)}
+            disabled={disabled}
           >
             <option value="">No chapter location</option>
             {locations.map((location) => (
@@ -595,23 +662,52 @@ function PersonPicker({
               </option>
             ))}
           </select>
-          <Button type="submit" variant="secondary" disabled={newPersonName.trim().length === 0}>
-            Add
-          </Button>
-        </form>
+        )}
+      </div>
 
-        <form className="mt-2 flex flex-wrap items-center gap-2" onSubmit={handleAddLocation}>
-          <Input
-            aria-label="New chapter location name"
-            placeholder="New chapter location…"
-            value={newLocationName}
-            onChange={(e) => setNewLocationName(e.target.value)}
-            className="w-36"
-          />
-          <Button type="submit" variant="secondary" disabled={newLocationName.trim().length === 0}>
-            Add location
-          </Button>
-        </form>
+      <div>
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            2. Person
+          </label>
+          <button
+            type="button"
+            onClick={() => setAddingPerson((v) => !v)}
+            className="text-xs font-medium text-slate-500 underline hover:text-slate-700"
+            disabled={disabled}
+          >
+            {addingPerson ? 'Cancel' : '+ Add yourself'}
+          </button>
+        </div>
+        {addingPerson ? (
+          <form className="mt-1 flex gap-2" onSubmit={handleAddPerson}>
+            <Input
+              aria-label="Your name"
+              placeholder="Your name…"
+              value={newPersonName}
+              onChange={(e) => setNewPersonName(e.target.value)}
+              autoFocus
+            />
+            <Button type="submit" variant="secondary" disabled={newPersonName.trim().length === 0}>
+              Add
+            </Button>
+          </form>
+        ) : (
+          <select
+            aria-label="Person"
+            className={cn('mt-1 w-full', selectClassName)}
+            value={personId}
+            onChange={(e) => onPersonChange(e.target.value)}
+            disabled={disabled}
+          >
+            <option value="">No person</option>
+            {peopleInScope.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
     </div>
   );
